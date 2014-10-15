@@ -17,6 +17,7 @@
                  [com.andrewmcveigh/cljs-time "0.2.1"]
                  [environ "1.0.0"]
                  [com.cemerick/piggieback "0.1.3"]
+                 [prismatic/om-tools "0.3.4"]
                  [weasel "0.4.0-SNAPSHOT"]]
 
   :plugins [[lein-cljsbuild "1.0.3"]
