@@ -101,11 +101,21 @@
     nil
     )))
 
+(defn focus-on-input [] (-> js/document (.querySelector "input") (.focus)))
+
 (defn list-view [app owner]
   (reify
     om/IInitState
     (init-state [_]
       {:delete (chan)})
+    om/IDidMount
+    (did-mount [this]
+      (focus-on-input)
+    )
+    om/IDidUpdate
+    (did-update [this prev-props prev-state]
+      (focus-on-input)
+    )
     om/IWillMount
     (will-mount [_]
       (let [delete (om/get-state owner :delete)]
