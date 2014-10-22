@@ -117,7 +117,12 @@
     nil
     )))))
 
-(defn focus-on-input [] (-> js/document (.querySelector "input") (.focus)))
+(defn focus-on-input []
+  (let [element (.querySelector js/document "input")
+        value (.-value element)
+        length (.-length value)]
+    (do (.focus element)
+       (.setSelectionRange element length length))))
 
 (defn list-view [app owner]
   (reify
