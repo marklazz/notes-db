@@ -12,16 +12,117 @@
               [om.dom :as dom :include-macros true]))
 
 (defn now [] (new js/Date))
+(defn guid []
+  (.getNextUniqueId (.getInstance IdGenerator)))
 (def custom-formatter (time-format/formatter "dd/MM/yyyy"))
 (def app-title (str "Notes " (time-format/unparse custom-formatter (time-core/date-time (.getFullYear (now)) (+ 1 (.getMonth (now))) (.getDate (now))))))
-(def app-state (atom {:entered [] :current { :tab 0 :title "" }}))
+(defn new-note [tab] { :id (guid) :tab tab :title "" :status "edited" })
+(def app-state (atom {:notes [(new-note 0)]}))
+
+(defn edit [e note owner comm]
+  (let [note-val @note
+        node (om/get-node owner "editField")]
+    (put! comm [:edit note-val])
+    ))
+
+(defn change [e note owner]
+  (om/set-state! owner :edit-text (.. e -target -value)))
+
+(defn submit [e note owner comm]
+  (when-let [edit-text (om/get-state owner :title)]
+    (if (string/blank? (.trim edit-text))
+      (do
+        (om/update! note :title edit-text)
+        (put! comm [:save @note]))
+      (put! comm [:destroy @note])
+    ))
+  false)
+
+(defn destroy-note [app {:keys [id]}]
+  (om/transact! app :notes
+    (fn [notes] (into [] (remove #(= (:id %) id) notes)))
+    [:delete id]))
+
+(defn mark-edited [n edited-id]
+  (if (= (:id n) edited-id)
+    (assoc n :status "edited")
+    (assoc n :status "entered")))
+
+(defn edit-note [app {:keys [id]}]
+  (let [note-list (:notes @app)
+        final-list (notes-with-editing-row-updated note-list id)]
+    (om/update! app :notes final-list)
+  )
+)
+
+(defn notes-with-editing-row-updated [notes-list id]
+    (vec (map #(mark-edited % id) notes-list))
+)
+
+(defn save-note [app note]
+  (let [existing-list (:notes @app)
+        updated-list (conj existing-list note)
+        final-list (notes-with-editing-row-updated updated-list (:id note))]
+    (om/update! app :notes final-list)
+  )
+)
+
+(defn hidden [is-hidden]
+  (if is-hidden
+    #js {:display "none"}
+    #js {}))
+
+(defn focus-input [note owner]
+  (when (= (:status note) "edited")
+    (let [node (om/get-node owner "editField")
+    len  (.. node -value -length)]
+    (.focus node)
+    (.setSelectionRange node len len)))
+)
 
 (defn note-view  [note owner]
   (reify
-    om/IRender
-    (render [this]
-      (indent-element (dom/li nil (:title note)) (:tab note))
-      )))
+    om/IInitState
+    (init-state [_]
+      {:edit-text (:title note)})
+    om/IDidMount
+    (did-mount [this]
+      (focus-input note owner))
+    om/IDidUpdate
+    (did-update [_ _ _]
+      (focus-input note owner))
+    om/IRenderState
+    (render-state [_ {:keys [comm] :as state}]
+        (indent-element (dom/li nil
+          (dom/div #js {:className "view"
+            :style (hidden (= (:status note) "edited"))
+            }
+            (dom/label
+              #js {:onDoubleClick #(edit % note owner comm)}
+              (:title note))
+            (dom/button
+              #js {:className "destroy"
+                   :onClick (fn [_] (put! comm [:destroy @note]))}
+              "Delete")
+          )
+          (dom/input
+            #js {:ref "editField"
+                 :className "edit"
+                 :placeholder "Enter note here..."
+                 :style (hidden (not (= (:status note) "edited")))
+                 :value (om/get-state owner :edit-text)
+                 :onBlur #(submit % note owner comm)
+                 :onChange #(change % note owner)
+                 :onKeyDown #(handle-new-note-keydown % note owner comm)})) (:tab note)))))
+
+(defn input-view [note owner]
+  (dom/li nil (dom/input #js {:type "text" :ref "newNote"
+    :placeholder "Enter note here..."
+    :onKeyDown #(handle-new-note-keydown % note owner)
+    :value (:title note)
+    })
+  )
+)
 
 (defn indent-element [content tab]
   (if (== 0 tab) content
@@ -39,6 +140,7 @@
    40 "down"
    46 "del"
    32 "space"
+   27 "escape"
    186 ";"})
  
 (defn event-modifiers
@@ -76,13 +178,13 @@
 (defn alphanumeric [s]
   (re-find #"^[a-z0-9]+$" s))
 
-(defn handle-new-note-keydown [e app owner]
+(defn handle-new-note-keydown [e note owner comm]
   (let [code (event->key e)
         which (.-which e)
         key (.toLowerCase (js/String.fromCharCode which))]
   (if (or (alphanumeric key) (== code "space"))
   (do
-    (om/transact! app [:current :title]
+    (om/transact! note :title
       #(str % key)
       [:title nil])
   )
@@ -90,32 +192,33 @@
   (case code
     "enter"
     (do
-      (let [new-field (om/get-node owner "newNote")]
+      (let [new-field (om/get-node owner "editField")]
       (when-not (string/blank? (.. new-field -value trim))
-        (let [new-note {:id (guid)
-                        :title (.-value new-field)
-                        :status "pending"
-                        :tab (get-in @app [:current :tab])}]
-          (om/transact! app :entered
-            #(conj % new-note)
-            [:create new-note])
-          (om/transact! app [:current :title]
-            (fn [_] "")
-            [:clean-current]))
-        ))
+        (let [note (new-note (:tab @note))]
+          (put! comm [:save note])
+        )))
         false)
     "tab" (do
-      (om/transact! app [:current :tab]
+      (om/transact! note :tab
         #(+ % 1)
         [:tab nil])
       false)
     "shift+tab" (do
-      (om/transact! app [:current :tab]
+      (om/transact! note :tab
         #(- % 1)
         [:tab nil])
       false)
-    nil
-    )))))
+    "up" (do
+      (put! comm [:up note])
+      false)
+    "down" (do
+      (put! comm [:down note])
+      false)
+    "escape" (do
+      (put! comm [:up note])
+      (put! comm [:destroy @note])
+      false)
+    nil)))))
 
 (defn focus-on-input []
   (let [element (.querySelector js/document "input")
@@ -124,60 +227,67 @@
     (do (.focus element)
        (.setSelectionRange element length length))))
 
-(defn list-view [app owner]
+(defn index-of [coll v]
+  (let [i (count (take-while #(not= v %) coll))]
+    (when (or (< i (count coll))
+            (= v (last coll)))
+      i)))
+
+(defn go-up [app note]
+  (let [existing-list (:notes @app)
+        index (index-of (:notes @app) @note)
+        note-above (get existing-list (- index 1))
+        final-list (notes-with-editing-row-updated existing-list (:id note-above))]
+    (if (> index 0)
+      (om/update! app :notes final-list)
+    )
+  )
+)
+
+(defn go-down [app note]
+  (let [existing-list (:notes @app)
+        index (index-of (:notes @app) @note)
+        last-row-index (- (.-length (clj->js existing-list)) 1)]
+    (if (= index last-row-index)
+      (let [n (new-note (:tab @note))]
+        (save-note app n)
+      )
+      (let [note-above (get existing-list (+ index 1))
+            final-list (notes-with-editing-row-updated existing-list (:id note-above))]
+        (om/update! app :notes final-list)))
+  )
+)
+
+(defn handle-event [type app val]
+  (case type
+    :destroy (destroy-note app val)
+    :edit    (edit-note app val)
+    :up      (go-up app val)
+    :down    (go-down app val)
+    :save    (save-note app val)
+    :cancel  (destroy-note app val)
+    nil))
+
+(defn notes-app [app owner]
   (reify
-    om/IInitState
-    (init-state [_]
-      {:delete (chan)})
-    om/IDidMount
-    (did-mount [this]
-      (focus-on-input)
-    )
-    om/IDidUpdate
-    (did-update [this prev-props prev-state]
-      (focus-on-input)
-    )
     om/IWillMount
     (will-mount [_]
-      (let [delete (om/get-state owner :delete)]
-        (go (loop []
-              (let [note (<! delete)]
-                (om/transact! app :entered
-                  (fn [xs] (vec (remove #(= note %) xs))))
-                (recur))))))
+      (let [comm (chan)]
+        (om/set-state! owner :comm comm)
+        (go (while true
+              (let [[type value] (<! comm)]
+                (handle-event type app value))))))
     om/IRenderState
-    (render-state [this state]
+    (render-state [_ {:keys [comm]}]
       (dom/div nil
         (dom/h1 nil app-title)
         (apply dom/ul nil
-          (om/build-all note-view (:entered app)
-            {:init-state state}))
-        (dom/ul nil
-          (indent-element
-            (dom/li nil (dom/input #js {:type "text" :ref "newNote"
-              :placeholder "Enter note here..."
-              :onKeyDown #(handle-new-note-keydown % app owner)
-              :value (get-in app [:current :title])
-            })) (get-in app [:current :tab])
-          )
-          ;(dom/button #js {:onClick #(add-note app owner)} "Add note")
-        )))))
-
-(defn guid []
-  (.getNextUniqueId (.getInstance IdGenerator)))
-
-(defn add-note [app owner]
-  (let [new-note (-> (om/get-node owner "newNote")
-                        .-value)]
-    (when new-note
-      (om/transact! app :entered #(conj % new-note)))))
+          (om/build-all note-view (:notes app)
+          {:init-state {:comm comm}
+           :key :id }
+          ))))))
 
 (om/root
-  (fn [app owner]
-    (reify om/IRender
-      (render [_]
-        (dom/div nil
-          (om/build list-view app)
-          ))))
+  notes-app
   app-state
   {:target (. js/document (getElementById "app"))})
