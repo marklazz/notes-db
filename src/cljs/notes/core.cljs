@@ -48,15 +48,16 @@
     (assoc n :status "edited")
     (assoc n :status "entered")))
 
+(defn notes-with-editing-row-updated [notes-list id]
+    (vec (map #(mark-edited % id) notes-list))
+)
+
+
 (defn edit-note [app {:keys [id]}]
   (let [note-list (:notes @app)
         final-list (notes-with-editing-row-updated note-list id)]
     (om/update! app :notes final-list)
   )
-)
-
-(defn notes-with-editing-row-updated [notes-list id]
-    (vec (map #(mark-edited % id) notes-list))
 )
 
 (defn save-note [app note]
@@ -79,6 +80,52 @@
     (.focus node)
     (.setSelectionRange node len len)))
 )
+(defn indent-element [content tab]
+  (if (== 0 tab) content
+    (reduce (fn [res _] (dom/ul nil res)) content (range 0 tab))))
+
+(defn handle-new-note-keydown [e note owner comm]
+  (let [code (event->key e)
+        which (.-which e)
+        key (.toLowerCase (js/String.fromCharCode which))]
+  (if (or (alphanumeric key) (== code "space"))
+  (do
+    (om/transact! note :title
+      #(str % key)
+      [:title nil])
+  )
+  (do
+  (case code
+    "enter"
+    (do
+      (let [new-field (om/get-node owner "editField")]
+      (when-not (string/blank? (.. new-field -value trim))
+        (let [note (new-note (:tab @note))]
+          (put! comm [:save note])
+        )))
+        false)
+    "tab" (do
+      (om/transact! note :tab
+        #(+ % 1)
+        [:tab nil])
+      false)
+    "shift+tab" (do
+      (om/transact! note :tab
+        #(- % 1)
+        [:tab nil])
+      false)
+    "up" (do
+      (put! comm [:up note])
+      false)
+    "down" (do
+      (put! comm [:down note])
+      false)
+    "escape" (do
+      (put! comm [:up note])
+      (put! comm [:destroy @note])
+      false)
+    nil)))))
+
 
 (defn note-view  [note owner]
   (reify
@@ -114,19 +161,6 @@
                  :onBlur #(submit % note owner comm)
                  :onChange #(change % note owner)
                  :onKeyDown #(handle-new-note-keydown % note owner comm)})) (:tab note)))))
-
-(defn input-view [note owner]
-  (dom/li nil (dom/input #js {:type "text" :ref "newNote"
-    :placeholder "Enter note here..."
-    :onKeyDown #(handle-new-note-keydown % note owner)
-    :value (:title note)
-    })
-  )
-)
-
-(defn indent-element [content tab]
-  (if (== 0 tab) content
-    (reduce (fn [res _] (dom/ul nil res)) content (range 0 tab))))
 
 (def code->key
   "map from a character code (read from events with event.which)
@@ -177,48 +211,6 @@
 
 (defn alphanumeric [s]
   (re-find #"^[a-z0-9]+$" s))
-
-(defn handle-new-note-keydown [e note owner comm]
-  (let [code (event->key e)
-        which (.-which e)
-        key (.toLowerCase (js/String.fromCharCode which))]
-  (if (or (alphanumeric key) (== code "space"))
-  (do
-    (om/transact! note :title
-      #(str % key)
-      [:title nil])
-  )
-  (do
-  (case code
-    "enter"
-    (do
-      (let [new-field (om/get-node owner "editField")]
-      (when-not (string/blank? (.. new-field -value trim))
-        (let [note (new-note (:tab @note))]
-          (put! comm [:save note])
-        )))
-        false)
-    "tab" (do
-      (om/transact! note :tab
-        #(+ % 1)
-        [:tab nil])
-      false)
-    "shift+tab" (do
-      (om/transact! note :tab
-        #(- % 1)
-        [:tab nil])
-      false)
-    "up" (do
-      (put! comm [:up note])
-      false)
-    "down" (do
-      (put! comm [:down note])
-      false)
-    "escape" (do
-      (put! comm [:up note])
-      (put! comm [:destroy @note])
-      false)
-    nil)))))
 
 (defn focus-on-input []
   (let [element (.querySelector js/document "input")
