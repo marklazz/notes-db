@@ -1,21 +1,18 @@
 (ns notes.core
-    (:import [goog.ui IdGenerator])
-    (:require-macros [cljs.core.async.macros :refer [go]])
+    (:require-macros [cljs.core.async.macros :refer [go]]
+                     [datomic-cljs.macros :refer [<?]])
     (:require [notes.dev :refer [is-dev?]]
+              [notes.utils :refer [guid date-str alphanumeric]]
+              [notes.event-handling :refer [event->key]]
               [om.core :as om :include-macros true]
-              [cljs-time.core :as time-core]
-              [cljs-time.format :as time-format]
               [om-tools.dom :as dom-tools :include-macros true]
               [cljs.core.async :refer [put! chan <!]]
+              [datomic-cljs.api :as d]
               [clojure.data :as data]
               [clojure.string :as string]
               [om.dom :as dom :include-macros true]))
 
-(defn now [] (new js/Date))
-(defn guid []
-  (.getNextUniqueId (.getInstance IdGenerator)))
-(def custom-formatter (time-format/formatter "dd/MM/yyyy"))
-(def app-title (str "Notes " (time-format/unparse custom-formatter (time-core/date-time (.getFullYear (now)) (+ 1 (.getMonth (now))) (.getDate (now))))))
+(def app-title (str "Notes " (date-str)))
 (defn new-note [tab] { :id (guid) :tab tab :title "" :status "edited" })
 (def app-state (atom {:notes [(new-note 0)]}))
 
@@ -81,8 +78,11 @@
     (.setSelectionRange node len len)))
 )
 (defn indent-element [content tab]
+    (dom/div #js { :className "note-container" } (nested-element content tab)))
+
+(defn nested-element [content tab]
   (if (== 0 tab) content
-    (reduce (fn [res _] (dom/ul nil res)) content (range 0 tab))))
+    (reduce (fn [res _] (dom/ul #js { :className "note-ul" } res)) content (range 0 tab))))
 
 (defn handle-new-note-keydown [e note owner comm]
   (let [code (event->key e)
@@ -126,7 +126,6 @@
       false)
     nil)))))
 
-
 (defn note-view  [note owner]
   (reify
     om/IInitState
@@ -140,7 +139,7 @@
       (focus-input note owner))
     om/IRenderState
     (render-state [_ {:keys [comm] :as state}]
-        (indent-element (dom/li nil
+        (indent-element (dom/li #js { :className "note-item" }
           (dom/div #js {:className "view"
             :style (hidden (= (:status note) "edited"))
             }
@@ -161,56 +160,6 @@
                  :onBlur #(submit % note owner comm)
                  :onChange #(change % note owner)
                  :onKeyDown #(handle-new-note-keydown % note owner comm)})) (:tab note)))))
-
-(def code->key
-  "map from a character code (read from events with event.which)
-  to a string representation of it.
-  Only need to add 'special' things here."
-  {13 "enter"
-   9  "tab"
-   37 "left"
-   38 "up"
-   39 "right"
-   40 "down"
-   46 "del"
-   32 "space"
-   27 "escape"
-   186 ";"})
- 
-(defn event-modifiers
-  "Given a keydown event, return the modifier keys that were being held."
-  [e]
-  (into [] (filter identity [(if (.-shiftKey e) "shift")
-                             (if (.-altKey e) "alt")
-                             (if (.-ctrlKey e) "ctrl")
-                             (if (.-metaKey e) "meta")])))
-
-(def mod-keys
-  "A vector of the modifier keys that we use to compare against to make
-  sure that we don't report things like pressing the shift key as independent events.
-  This may not be desirable behavior, depending on the use case, but it works for
-  what I need."
-  [;; shift
-   (js/String.fromCharCode 16)
-   ;; ctrl
-   (js/String.fromCharCode 17)
-   ;; alt
-   (js/String.fromCharCode 18)
-   ])
-
-(defn event->key
-  "Given an event, return a string like 'up' or 'shift+l' or 'ctrl+;'
-  describing the key that was pressed.
-  This fn will never return just 'shift' or any other lone modifier key."
-  [event]
-  (let [mods (event-modifiers event)
-        which (.-which event)
-        key (or (code->key which) (.toLowerCase (js/String.fromCharCode which)))]
-    (if (and key (not (empty? key)) (not (some #{key} mod-keys)))
-      (string/join "+" (conj mods key)))))
-
-(defn alphanumeric [s]
-  (re-find #"^[a-z0-9]+$" s))
 
 (defn focus-on-input []
   (let [element (.querySelector js/document "input")
