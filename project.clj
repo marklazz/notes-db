@@ -8,6 +8,7 @@
 
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [org.clojure/clojurescript "0.0-2342"]
+                [com.zachallaun/datomic-cljs "0.0.1-alpha-1"]
                  [ring "1.3.1"]
                  [compojure "1.1.9"]
                  [enlive "1.1.5"]
@@ -18,6 +19,8 @@
                  [environ "1.0.0"]
                  [com.cemerick/piggieback "0.1.3"]
                  [prismatic/om-tools "0.3.4"]
+                 [expectations "2.0.12"]
+                 [com.datomic/datomic-free "0.9.5052"]
                  [weasel "0.4.0-SNAPSHOT"]]
 
   :plugins [[lein-cljsbuild "1.0.3"]
@@ -27,7 +30,7 @@
 
   :uberjar-name "notes.jar"
 
-  :cljsbuild {:builds {:app {:source-paths ["src/cljs"]
+  :cljsbuild {:builds {:app {:source-paths ["src/clj" "src/cljs"]
                              :compiler {:output-to     "resources/public/app.js"
                                         :output-dir    "resources/public/out"
                                         :source-map    "resources/public/out.js.map"
@@ -41,8 +44,9 @@
                    :plugins [[lein-figwheel "0.1.4-SNAPSHOT"]]
                    :figwheel {:http-server-root "public"
                               :port 3449 }
-                   :env {:is-dev true}}
-
+                   :env {:is-dev true}
+                   :datomic { :config "resources/datomic/free-transactor-template.properties"
+                             :db-uri "datomic:free://localhost:4334/notes-db"}}
              :uberjar {:hooks [leiningen.cljsbuild]
                        :env {:production true}
                        :omit-source true

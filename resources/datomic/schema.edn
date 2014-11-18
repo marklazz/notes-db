@@ -1,0 +1,28 @@
+[{:db/id #db/id[:db.part/db]
+ :db/ident :notes/title
+ :db/valueType :db.type/string
+ :db/cardinality :db.cardinality/one
+ :db/doc "An note's title"
+ :db.install/_attribute :db.part/db}
+
+{:db/id #db/id[:db.part/db]
+ :db/ident :notes/date
+ :db/valueType :db.type/string
+ :db/cardinality :db.cardinality/one
+ :db/doc "An note's date"
+ :db.install/_attribute :db.part/db}
+
+{:db/id #db/id[:db.part/db]
+ :db/ident :notes/indent
+ :db/valueType :db.type/long
+ :db/cardinality :db.cardinality/one
+ :db/doc "An note's indent"
+ :db.install/_attribute :db.part/db}
+
+{:db/id #db/id[:db.part/db]
+ :db/ident :notes/index
+ :db/valueType :db.type/long
+ :db/cardinality :db.cardinality/one
+ :db/doc "An note's index"
+ :db.install/_attribute :db.part/db}
+]

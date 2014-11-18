@@ -1,15 +1,5 @@
-(ns notes.storage
+(ns notes.storage-client
   (:import [goog.net XhrIo]))
-
-;(defn classes []
-  ;(let [db (d/db conn)
-        ;classes
-        ;(vec (map #(d/touch (d/entity db (first %)))
-               ;(d/q '[:find ?class
-                      ;:where
-                      ;[?class :class/id]]
-                 ;db)))]
-    ;(generate-response classes)))
 
 (defn edn-xhr [{:keys [method url data on-complete]}]
   (let [xhr (XhrIo.)]

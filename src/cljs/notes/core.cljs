@@ -49,7 +49,6 @@
     (vec (map #(mark-edited % id) notes-list))
 )
 
-
 (defn edit-note [app {:keys [id]}]
   (let [note-list (:notes @app)
         final-list (notes-with-editing-row-updated note-list id)]
