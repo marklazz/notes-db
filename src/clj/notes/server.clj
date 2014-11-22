@@ -12,10 +12,6 @@
               [ring.adapter.jetty :refer [run-jetty]])
 )
 
-;(go
-  ;(let [[[eid]] (<! (d/q '[:find ?e :where [?e :owner/name "Bob"]]
-                         ;(d/db conn)))]
-    ;(<! (d/transact conn [[:db/add eid :owner/name "Boba"]]))))
 (deftemplate page
   (io/resource "index.html") [] [:body] (if is-dev? inject-devmode-html identity))
 
