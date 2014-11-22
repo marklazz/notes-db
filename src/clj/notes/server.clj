@@ -31,7 +31,7 @@
 (def http-handler
   (if is-dev?
     ;(reload/wrap-reload (api #'routes))
-    (-> routes  wrap-edn-params logging)
+    (-> routes  wrap-edn-params)
     (api routes)))
 
 (defn run [& [port]]
