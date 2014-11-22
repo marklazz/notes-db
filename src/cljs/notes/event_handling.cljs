@@ -1,4 +1,5 @@
-(ns notes.event-handling)
+(ns notes.event-handling
+  (:require [clojure.string :as string]))
 
 (def code->key
   "map from a character code (read from events with event.which)

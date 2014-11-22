@@ -4,6 +4,7 @@
     (:require [notes.dev :refer [is-dev?]]
               [notes.utils :refer [guid date-str alphanumeric]]
               [notes.event-handling :refer [event->key]]
+              [notes.storage-client :refer [persist-save]]
               [om.core :as om :include-macros true]
               [om-tools.dom :as dom-tools :include-macros true]
               [cljs.core.async :refer [put! chan <!]]
@@ -56,11 +57,12 @@
   )
 )
 
-(defn save-note [app note]
+(defn save-note [app [current-note new-blank-note]]
   (let [existing-list (:notes @app)
-        updated-list (conj existing-list note)
-        final-list (notes-with-editing-row-updated updated-list (:id note))]
+        updated-list (conj existing-list new-blank-note)
+        final-list (notes-with-editing-row-updated updated-list (:id new-blank-note))]
     (om/update! app :notes final-list)
+    (persist-save (:id current-note) (:title current-note))
   )
 )
 
@@ -99,8 +101,8 @@
     (do
       (let [new-field (om/get-node owner "editField")]
       (when-not (string/blank? (.. new-field -value trim))
-        (let [note (new-note (:tab @note))]
-          (put! comm [:save note])
+        (let [blank-note (new-note (:tab @note))]
+          (put! comm [:save [@note blank-note]])
         )))
         false)
     "tab" (do
@@ -189,8 +191,9 @@
         index (index-of (:notes @app) @note)
         last-row-index (- (.-length (clj->js existing-list)) 1)]
     (if (= index last-row-index)
-      (let [n (new-note (:tab @note))]
-        (save-note app n)
+      (let [new-blank-note (new-note (:tab @note))
+            current-note (get existing-list last-row-index)]
+        (save-note app [current-note new-blank-note])
       )
       (let [note-above (get existing-list (+ index 1))
             final-list (notes-with-editing-row-updated existing-list (:id note-above))]
