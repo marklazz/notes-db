@@ -18,6 +18,12 @@
      (fn [res]
        (println "server response:" res))}))
 
+(defn find-all [cb]
+  (edn-xhr
+    { :method :get
+      :url "/notes"
+      :on-complete cb}))
+
 (defn edn-xhr [{:keys [method url data on-complete]}]
   (let [xhr (XhrIo.)]
     (events/listen xhr goog.net.EventType.COMPLETE

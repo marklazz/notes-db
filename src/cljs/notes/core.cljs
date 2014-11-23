@@ -4,7 +4,7 @@
     (:require [notes.dev :refer [is-dev?]]
               [notes.utils :refer [guid date-str alphanumeric]]
               [notes.event-handling :refer [event->key]]
-              [notes.storage-client :refer [persist-save]]
+              [notes.storage-client :refer [persist-save find-all]]
               [om.core :as om :include-macros true]
               [om-tools.dom :as dom-tools :include-macros true]
               [cljs.core.async :refer [put! chan <!]]
@@ -216,10 +216,13 @@
     om/IWillMount
     (will-mount [_]
       (let [comm (chan)]
+        (find-all (fn [res] (om/transact! app :notes (fn [_] (vec (concat (map #(assoc % :status "entered") res) [(new-note 0)]))))))
         (om/set-state! owner :comm comm)
         (go (while true
               (let [[type value] (<! comm)]
-                (handle-event type app value))))))
+                (handle-event type app value))))
+      )
+    )
     om/IRenderState
     (render-state [_ {:keys [comm]}]
       (dom/div nil
