@@ -14,7 +14,7 @@
               [om.dom :as dom :include-macros true]))
 
 (def app-title (str "Notes " (date-str)))
-(defn new-note [tab] { :id (guid) :tab tab :title "" :status "edited" })
+(defn new-note [tab] { :note/guid (guid) :note/indent tab :note/title "" :status "edited" })
 (def app-state (atom {:notes [(new-note 0)]}))
 
 (defn edit [e note owner comm]
@@ -27,10 +27,10 @@
   (om/set-state! owner :edit-text (.. e -target -value)))
 
 (defn submit [e note owner comm]
-  (when-let [edit-text (om/get-state owner :title)]
+  (when-let [edit-text (om/get-state owner :note/title)]
     (if (string/blank? (.trim edit-text))
       (do
-        (om/update! note :title edit-text)
+        (om/update! note :note/title edit-text)
         (put! comm [:save @note]))
       (put! comm [:destroy @note])
     ))
@@ -38,11 +38,11 @@
 
 (defn destroy-note [app {:keys [id]}]
   (om/transact! app :notes
-    (fn [notes] (into [] (remove #(= (:id %) id) notes)))
+    (fn [notes] (into [] (remove #(= (:note/guid %) id) notes)))
     [:delete id]))
 
 (defn mark-edited [n edited-id]
-  (if (= (:id n) edited-id)
+  (if (= (:note/guid n) edited-id)
     (assoc n :status "edited")
     (assoc n :status "entered")))
 
@@ -60,9 +60,9 @@
 (defn save-note [app [current-note new-blank-note]]
   (let [existing-list (:notes @app)
         updated-list (conj existing-list new-blank-note)
-        final-list (notes-with-editing-row-updated updated-list (:id new-blank-note))]
+        final-list (notes-with-editing-row-updated updated-list (:note/guid new-blank-note))]
     (om/update! app :notes final-list)
-    (persist-save (:id current-note) (:title current-note))
+    (persist-save current-note)
   )
 )
 
@@ -91,9 +91,9 @@
         key (.toLowerCase (js/String.fromCharCode which))]
   (if (or (alphanumeric key) (== code "space"))
   (do
-    (om/transact! note :title
+    (om/transact! note :note/title
       #(str % key)
-      [:title nil])
+      [:note/title nil])
   )
   (do
   (case code
@@ -101,19 +101,19 @@
     (do
       (let [new-field (om/get-node owner "editField")]
       (when-not (string/blank? (.. new-field -value trim))
-        (let [blank-note (new-note (:tab @note))]
+        (let [blank-note (new-note (:note/indent @note))]
           (put! comm [:save [@note blank-note]])
         )))
         false)
     "tab" (do
-      (om/transact! note :tab
+      (om/transact! note :note/indent
         #(+ % 1)
-        [:tab nil])
+        [:note/indent nil])
       false)
     "shift+tab" (do
-      (om/transact! note :tab
+      (om/transact! note :note/indent
         #(- % 1)
-        [:tab nil])
+        [:note/indent nil])
       false)
     "up" (do
       (put! comm [:up note])
@@ -131,7 +131,7 @@
   (reify
     om/IInitState
     (init-state [_]
-      {:edit-text (:title note)})
+      {:edit-text (:note/title note)})
     om/IDidMount
     (did-mount [this]
       (focus-input note owner))
@@ -146,7 +146,7 @@
             }
             (dom/label
               #js {:onDoubleClick #(edit % note owner comm)}
-              (:title note))
+              (:note/title note))
             (dom/button
               #js {:className "destroy"
                    :onClick (fn [_] (put! comm [:destroy @note]))}
@@ -160,7 +160,7 @@
                  :value (om/get-state owner :edit-text)
                  :onBlur #(submit % note owner comm)
                  :onChange #(change % note owner)
-                 :onKeyDown #(handle-new-note-keydown % note owner comm)})) (:tab note)))))
+                 :onKeyDown #(handle-new-note-keydown % note owner comm)})) (:note/indent note)))))
 
 (defn focus-on-input []
   (let [element (.querySelector js/document "input")
@@ -179,7 +179,7 @@
   (let [existing-list (:notes @app)
         index (index-of (:notes @app) @note)
         note-above (get existing-list (- index 1))
-        final-list (notes-with-editing-row-updated existing-list (:id note-above))]
+        final-list (notes-with-editing-row-updated existing-list (:note/guid note-above))]
     (if (> index 0)
       (om/update! app :notes final-list)
     )
@@ -191,12 +191,12 @@
         index (index-of (:notes @app) @note)
         last-row-index (- (.-length (clj->js existing-list)) 1)]
     (if (= index last-row-index)
-      (let [new-blank-note (new-note (:tab @note))
+      (let [new-blank-note (new-note (:note/indent @note))
             current-note (get existing-list last-row-index)]
         (save-note app [current-note new-blank-note])
       )
       (let [note-above (get existing-list (+ index 1))
-            final-list (notes-with-editing-row-updated existing-list (:id note-above))]
+            final-list (notes-with-editing-row-updated existing-list (:note/guid note-above))]
         (om/update! app :notes final-list)))
   )
 )
@@ -227,7 +227,7 @@
         (apply dom/ul nil
           (om/build-all note-view (:notes app)
           {:init-state {:comm comm}
-           :key :id }
+           :key :note/guid }
           ))))))
 
 (om/root

@@ -9,11 +9,11 @@
    :post "POST"
    :delete "DELETE"})
 
-(defn persist-save [id title]
+(defn persist-save [note]
   (edn-xhr
     {:method :post
      :url "/notes"
-     :data { :note/id id :note/title title}
+     :data note
      :on-complete
      (fn [res]
        (println "server response:" res))}))

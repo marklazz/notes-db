@@ -8,7 +8,7 @@
               [net.cgrand.enlive-html :refer [deftemplate]]
               [ring.middleware.reload :as reload]
               [environ.core :refer [env]]
-              [notes.storage :refer [notes create-note]]
+              [notes.storage :refer [find-all create-note]]
               [ring.adapter.jetty :refer [run-jetty]])
 )
 
@@ -17,7 +17,7 @@
 
 (defroutes routes
   (GET "/" req (page))
-  (GET "/notes" [] (notes))
+  (GET "/notes" [] (find-all))
   (POST "/notes" {params :params edn-params :edn-params} (create-note edn-params))
   (resources "/react" {:root "react"})
   (files "/" {:root "resources/public"}))
