@@ -1,6 +1,7 @@
 (ns notes.storage
   (:require [datomic.api :as d]))
 ; Steps to recreate DB
+; use this ns
 ; 1) run (re-create-db) in one session
 ; 2) run (use-schema) in another session
 
@@ -32,27 +33,25 @@
                  db)))]
     (generate-response notes)))
 
-(defn find-note-id [id title]
+(defn find-note-id [title]
   (let [conn (d/connect uri)
         db    (d/db conn)]
     (ffirst
       (d/q '[:find ?note
-             :in $ ?id ?title
+             :in $ ?title
              :where
-             [?note :note/guid ?id]
              [?note :note/title ?title]]
-           db id title))
+           db title))
 ))
 
 (defn create-note [params]
   (let [conn (d/connect uri)
         db    (d/db conn)
-        id (:note/guid params)
         title (:note/title params)
         indent (:note/indent params)
         eid (d/tempid :db.part/user)]
-    @(d/transact conn [{:db/id eid :note/guid id :note/title title :note/indent indent}])
-    (generate-response {:status :ok :db/id (find-note-id id title)})))
+    @(d/transact conn [{:db/id eid :note/title title :note/indent indent}])
+    (generate-response {:status :ok :db/id (find-note-id title)})))
 
 (defn update-note [params]
   (let [conn (d/connect uri)

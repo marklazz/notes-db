@@ -2,7 +2,7 @@
     (:require-macros [cljs.core.async.macros :refer [go]]
                      [datomic-cljs.macros :refer [<?]])
     (:require [notes.dev :refer [is-dev?]]
-              [notes.utils :refer [guid date-str alphanumeric]]
+              [notes.utils :refer [date-str alphanumeric]]
               [notes.event-handling :refer [event->key]]
               [notes.storage-client :refer [persist-save find-all]]
               [om.core :as om :include-macros true]
@@ -14,7 +14,7 @@
               [om.dom :as dom :include-macros true]))
 
 (def app-title (str "Notes " (date-str)))
-(defn new-note [tab] { :note/guid (guid) :note/indent tab :note/title "" :status "edited" })
+(defn new-note [tab] { :db/id nil :note/indent tab :note/title "" :status "edited" })
 (def app-state (atom {:notes [(new-note 0)]}))
 
 (defn edit [e note owner comm]
@@ -38,11 +38,11 @@
 
 (defn destroy-note [app {:keys [id]}]
   (om/transact! app :notes
-    (fn [notes] (into [] (remove #(= (:note/guid %) id) notes)))
+    (fn [notes] (into [] (remove #(= (:db/id %) id) notes)))
     [:delete id]))
 
 (defn mark-edited [n edited-id]
-  (if (= (:note/guid n) edited-id)
+  (if (= (:db/id n) edited-id)
     (assoc n :status "edited")
     (assoc n :status "entered")))
 
@@ -60,7 +60,7 @@
 (defn save-note [app [current-note new-blank-note]]
   (let [existing-list (:notes @app)
         updated-list (conj existing-list new-blank-note)
-        final-list (notes-with-editing-row-updated updated-list (:note/guid new-blank-note))]
+        final-list (notes-with-editing-row-updated updated-list (:db/id new-blank-note))]
     (om/update! app :notes final-list)
     (persist-save current-note)
   )
@@ -78,12 +78,12 @@
     (.focus node)
     (.setSelectionRange node len len)))
 )
-(defn indent-element [content tab]
-    (dom/div #js { :className "note-container" } (nested-element content tab)))
-
 (defn nested-element [content tab]
   (if (== 0 tab) content
     (reduce (fn [res _] (dom/ul #js { :className "note-ul" } res)) content (range 0 tab))))
+
+(defn indent-element [content tab]
+    (dom/div #js { :className "note-container" } (nested-element content tab)))
 
 (defn handle-new-note-keydown [e note owner comm]
   (let [code (event->key e)
@@ -179,7 +179,7 @@
   (let [existing-list (:notes @app)
         index (index-of (:notes @app) @note)
         note-above (get existing-list (- index 1))
-        final-list (notes-with-editing-row-updated existing-list (:note/guid note-above))]
+        final-list (notes-with-editing-row-updated existing-list (:db/id note-above))]
     (if (> index 0)
       (om/update! app :notes final-list)
     )
@@ -196,7 +196,7 @@
         (save-note app [current-note new-blank-note])
       )
       (let [note-above (get existing-list (+ index 1))
-            final-list (notes-with-editing-row-updated existing-list (:note/guid note-above))]
+            final-list (notes-with-editing-row-updated existing-list (:db/id note-above))]
         (om/update! app :notes final-list)))
   )
 )
@@ -216,7 +216,16 @@
     om/IWillMount
     (will-mount [_]
       (let [comm (chan)]
-        (find-all (fn [res] (om/transact! app :notes (fn [_] (vec (concat (map #(assoc % :status "entered") res) [(new-note 0)]))))))
+        (find-all
+          (fn [res]
+            (om/transact! app :notes
+              (fn [_]
+                (let [nn (new-note 0) final-list (vec (concat (map #(assoc % :status "entered") res) [nn]))]
+                  final-list)
+              )
+            )
+          )
+        )
         (om/set-state! owner :comm comm)
         (go (while true
               (let [[type value] (<! comm)]
@@ -230,7 +239,7 @@
         (apply dom/ul nil
           (om/build-all note-view (:notes app)
           {:init-state {:comm comm}
-           :key :note/guid }
+           :key :db/id }
           ))))))
 
 (om/root
