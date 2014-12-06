@@ -1,4 +1,3 @@
-; TODO: 2) onblur see if it saves!
 (ns notes.core
     (:require-macros [cljs.core.async.macros :refer [go]]
                      [datomic-cljs.macros :refer [<?]])
@@ -189,16 +188,23 @@
 (defn go-up [app note]
   (let [existing-list (:notes @app)
         index (index-of (:notes @app) @note)
+        id (:db/id @note)
         note-above (get existing-list (- index 1))
         final-list (notes-with-editing-row-updated existing-list (:db/id note-above))]
     (if (> index 0)
-      (do
-      (om/update! app :notes final-list)
-      (persist-update @note)
+      (if (not (string/blank? (:note/title @note)))
+        (do
+          (om/update! app :notes final-list)
+          (persist-update @note)
+        )
+        (do
+          (om/update! app :notes (into [] (remove #(= (:db/id %) id) final-list)))
+          (js/console.log (str "subiendo" @note))
+          )
+      )
       )
     )
   )
-)
 
 (defn go-down [app note]
   (let [existing-list (:notes @app)
