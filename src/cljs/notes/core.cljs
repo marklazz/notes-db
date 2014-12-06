@@ -1,10 +1,11 @@
+; TODO: 2) onblur see if it saves!
 (ns notes.core
     (:require-macros [cljs.core.async.macros :refer [go]]
                      [datomic-cljs.macros :refer [<?]])
     (:require [notes.dev :refer [is-dev?]]
               [notes.utils :refer [date-str alphanumeric]]
               [notes.event-handling :refer [event->key]]
-              [notes.storage-client :refer [persist-save find-all]]
+              [notes.storage-client :refer [persist-create persist-update find-all]]
               [om.core :as om :include-macros true]
               [om-tools.dom :as dom-tools :include-macros true]
               [cljs.core.async :refer [put! chan <!]]
@@ -26,20 +27,20 @@
 (defn change [e note owner]
   (om/set-state! owner :edit-text (.. e -target -value)))
 
-(defn submit [e note owner comm]
-  (when-let [edit-text (om/get-state owner :note/title)]
+(defn on-blur [e note owner comm]
+  (when-let [edit-text (om/get-state owner :edit-text)]
     (if (string/blank? (.trim edit-text))
       (do
         (om/update! note :note/title edit-text)
-        (put! comm [:save @note]))
-      (put! comm [:destroy @note])
+        (put! comm [:down note]))
     ))
   false)
 
-(defn destroy-note [app {:keys [id]}]
+(defn destroy-note [app note]
+  (let [id (:db/id note)]
   (om/transact! app :notes
     (fn [notes] (into [] (remove #(= (:db/id %) id) notes)))
-    [:delete id]))
+    [:delete id])))
 
 (defn mark-edited [n edited-id]
   (if (= (:db/id n) edited-id)
@@ -50,21 +51,27 @@
     (vec (map #(mark-edited % id) notes-list))
 )
 
-(defn edit-note [app {:keys [id]}]
+(defn edit-note [app note]
   (let [note-list (:notes @app)
-        final-list (notes-with-editing-row-updated note-list id)]
+        id (:db/id note)
+        final-list (vec (notes-with-editing-row-updated note-list id))]
     (om/update! app :notes final-list)
   )
 )
 
-(defn save-note [app [current-note new-blank-note]]
+(defn save-or-update [app [current-note new-blank-note]]
   (let [existing-list (:notes @app)
         updated-list (conj existing-list new-blank-note)
         final-list (notes-with-editing-row-updated updated-list (:db/id new-blank-note))]
     (om/update! app :notes final-list)
-    (persist-save current-note)
+    (if (:db/id current-note)
+      (do
+        (persist-update current-note))
+      (do
+        (persist-create current-note))
+      )
+    )
   )
-)
 
 (defn hidden [is-hidden]
   (if is-hidden
@@ -86,25 +93,15 @@
     (dom/div #js { :className "note-container" } (nested-element content tab)))
 
 (defn handle-new-note-keydown [e note owner comm]
-  (let [code (event->key e)
+   (let [code (event->key e)
         which (.-which e)
         key (.toLowerCase (js/String.fromCharCode which))]
-  (if (or (alphanumeric key) (== code "space"))
-  (do
-    (om/transact! note :note/title
-      #(str % key)
-      [:note/title nil])
-  )
   (do
   (case code
     "enter"
     (do
-      (let [new-field (om/get-node owner "editField")]
-      (when-not (string/blank? (.. new-field -value trim))
-        (let [blank-note (new-note (:note/indent @note))]
-          (put! comm [:save [@note blank-note]])
-        )))
-        false)
+      (put! comm [:down note])
+      false)
     "tab" (do
       (om/transact! note :note/indent
         #(+ % 1)
@@ -125,7 +122,20 @@
       (put! comm [:up note])
       (put! comm [:destroy @note])
       false)
-    nil)))))
+    nil))))
+
+(defn handle-new-note-keyup [e note owner comm]
+  (let [code (event->key e)
+        which (.-which e)
+        key (.toLowerCase (js/String.fromCharCode which))]
+    (if (or (alphanumeric key) (== code "space") (== code "backspace"))
+      (do
+        (om/transact! note :note/title
+                      (fn [s]
+                        (.. e -target -value))
+                      [:note/title nil])
+        )
+      )))
 
 (defn note-view  [note owner]
   (reify
@@ -158,8 +168,9 @@
                  :placeholder "Enter note here..."
                  :style (hidden (not (= (:status note) "edited")))
                  :value (om/get-state owner :edit-text)
-                 :onBlur #(submit % note owner comm)
+                 :onBlur #(on-blur % note owner comm)
                  :onChange #(change % note owner)
+                 :onKeyUp #(handle-new-note-keyup % note owner comm)
                  :onKeyDown #(handle-new-note-keydown % note owner comm)})) (:note/indent note)))))
 
 (defn focus-on-input []
@@ -181,7 +192,10 @@
         note-above (get existing-list (- index 1))
         final-list (notes-with-editing-row-updated existing-list (:db/id note-above))]
     (if (> index 0)
+      (do
       (om/update! app :notes final-list)
+      (persist-update @note)
+      )
     )
   )
 )
@@ -191,12 +205,14 @@
         index (index-of (:notes @app) @note)
         last-row-index (- (.-length (clj->js existing-list)) 1)]
     (if (= index last-row-index)
+      (if (not (string/blank? (:note/title @note)))
       (let [new-blank-note (new-note (:note/indent @note))
             current-note (get existing-list last-row-index)]
-        (save-note app [current-note new-blank-note])
-      )
+        (save-or-update app [current-note new-blank-note])
+      ))
       (let [note-above (get existing-list (+ index 1))
             final-list (notes-with-editing-row-updated existing-list (:db/id note-above))]
+        (persist-update @note)
         (om/update! app :notes final-list)))
   )
 )
@@ -207,7 +223,6 @@
     :edit    (edit-note app val)
     :up      (go-up app val)
     :down    (go-down app val)
-    :save    (save-note app val)
     :cancel  (destroy-note app val)
     nil))
 

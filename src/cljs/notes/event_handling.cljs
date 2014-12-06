@@ -6,6 +6,7 @@
   to a string representation of it.
   Only need to add 'special' things here."
   {13 "enter"
+   8  "backspace"
    9  "tab"
    37 "left"
    38 "up"

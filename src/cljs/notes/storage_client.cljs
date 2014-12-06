@@ -7,16 +7,27 @@
   {:get "GET"
    :put "PUT"
    :post "POST"
+   :patch "PATCH"
    :delete "DELETE"})
 
-(defn persist-save [note]
+(defn persist-create [note]
   (edn-xhr
     {:method :post
      :url "/notes"
      :data note
      :on-complete
      (fn [res]
-       (println "server response:" res))}))
+       (println "POST response:" res))}))
+
+
+(defn persist-update [note]
+  (edn-xhr
+    {:method :patch
+     :url (str "/notes/" (:db/id note))
+     :data note
+     :on-complete
+     (fn [res]
+       (println "PATCH response:" res))}))
 
 (defn find-all [cb]
   (edn-xhr

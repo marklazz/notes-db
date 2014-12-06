@@ -55,15 +55,8 @@
 
 (defn update-note [params]
   (let [conn (d/connect uri)
-        id    (:note/guid params)
+        id    (:db/id params)
         db    (d/db conn)
-        title (:note/title params)
-        eid   (ffirst
-                (d/q '[:find ?note
-                       :in $ ?id
-                       :where
-                       [?note :note/guid ?id]]
-                  db id))
-        finalid (or eid (d/tempid :db.part/user))]
-    @(d/transact conn [{:db/id eid :note/title title}])
+        title (:note/title params)]
+    @(d/transact conn [{:db/id id :note/title title}])
     (generate-response {:status :ok})))
