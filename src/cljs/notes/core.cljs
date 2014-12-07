@@ -4,7 +4,7 @@
     (:require [notes.dev :refer [is-dev?]]
               [notes.utils :refer [date-str alphanumeric]]
               [notes.event-handling :refer [event->key]]
-              [notes.storage-client :refer [persist-create persist-update find-all]]
+              [notes.storage-client :refer [persist-create persist-update find-all remove-entry]]
               [om.core :as om :include-macros true]
               [om-tools.dom :as dom-tools :include-macros true]
               [cljs.core.async :refer [put! chan <!]]
@@ -27,19 +27,19 @@
   (om/set-state! owner :edit-text (.. e -target -value)))
 
 (defn on-blur [e note owner comm]
-  (when-let [edit-text (om/get-state owner :edit-text)]
-    (if (string/blank? (.trim edit-text))
-      (do
-        (om/update! note :note/title edit-text)
-        (put! comm [:down note]))
-    ))
-  false)
+  (do
+    (put! comm [:save note])
+    false))
 
 (defn destroy-note [app note]
   (let [id (:db/id note)]
-  (om/transact! app :notes
-    (fn [notes] (into [] (remove #(= (:db/id %) id) notes)))
-    [:delete id])))
+    (om/transact! app :notes
+                  (fn [notes] (into [] (remove #(= (:db/id %) id) notes)))
+                  [:delete id])
+    (remove-entry note (fn [res]
+                         (do
+                           (println "DELETE response:" res)
+                           )))))
 
 (defn mark-edited [n edited-id]
   (if (= (:db/id n) edited-id)
@@ -58,17 +58,44 @@
   )
 )
 
+(defn save-or-update-note [app note]
+  (if (:db/id @note)
+    (do
+      (if (not (string/blank? (:note/title @note)))
+        (persist-update @note (fn [res]
+          (do
+            (println "PATCH response:" res)
+        )))
+        (do
+          (om/transact! app :notes
+              (fn [notes] (into [] (remove #(= (:db/id %) (:db/id @note)) notes)))
+                        [])
+        (remove-entry @note (fn [res]
+                             (do
+                               (println "DELETE response:" res)
+                               )))
+        )
+      ))
+      (if (not (string/blank? (:note/title @note)))
+      (persist-create @note (fn [res]
+        (do
+         (println "PATCH response:" res)
+          (om/transact! app :notes
+                        (fn [notes] (do
+                                      (let [updated-note (merge @note { :db/id (:db/id res) :status "entered" })
+                                            final-list (map #(if (and (= (:db/id %) nil) (not (string/blank? (:note/title %)))) updated-note %) notes)]
+                                        (vec final-list))))
+                        [])
+          ))
+      ))
+    )
+  )
+
 (defn save-or-update [app [current-note new-blank-note]]
   (let [existing-list (:notes @app)
         updated-list (conj existing-list new-blank-note)
         final-list (notes-with-editing-row-updated updated-list (:db/id new-blank-note))]
     (om/update! app :notes final-list)
-    (if (:db/id current-note)
-      (do
-        (persist-update current-note))
-      (do
-        (persist-create current-note))
-      )
     )
   )
 
@@ -195,11 +222,9 @@
       (if (not (string/blank? (:note/title @note)))
         (do
           (om/update! app :notes final-list)
-          (persist-update @note)
         )
         (do
           (om/update! app :notes (into [] (remove #(= (:db/id %) id) final-list)))
-          (js/console.log (str "subiendo" @note))
           )
       )
       )
@@ -218,8 +243,8 @@
       ))
       (let [note-above (get existing-list (+ index 1))
             final-list (notes-with-editing-row-updated existing-list (:db/id note-above))]
-        (persist-update @note)
-        (om/update! app :notes final-list)))
+        (om/update! app :notes final-list))
+    )
   )
 )
 
@@ -229,7 +254,7 @@
     :edit    (edit-note app val)
     :up      (go-up app val)
     :down    (go-down app val)
-    :cancel  (destroy-note app val)
+    :save    (save-or-update-note app val)
     nil))
 
 (defn notes-app [app owner]
@@ -239,11 +264,9 @@
       (let [comm (chan)]
         (find-all
           (fn [res]
-            (om/transact! app :notes
-              (fn [_]
-                (let [nn (new-note 0) final-list (vec (concat (map #(assoc % :status "entered") res) [nn]))]
-                  final-list)
-              )
+            (om/update! app :notes
+              (let [nn (new-note 0) final-list (vec (concat (map #(assoc % :status "entered") res) [nn]))]
+                final-list)
             )
           )
         )

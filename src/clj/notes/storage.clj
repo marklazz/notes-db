@@ -1,7 +1,7 @@
 (ns notes.storage
   (:require [datomic.api :as d]))
 ; Steps to recreate DB
-; use this ns
+; (use 'notes.storage)
 ; 1) run (re-create-db) in one session
 ; 2) run (use-schema) in another session
 
@@ -57,6 +57,16 @@
   (let [conn (d/connect uri)
         id    (:db/id params)
         db    (d/db conn)
+        indent (:note/indent params)
         title (:note/title params)]
-    @(d/transact conn [{:db/id id :note/title title}])
+    @(d/transact conn [{:db/id id :note/title title :note/indent indent}])
+    (generate-response {:status :ok})))
+
+(defn delete-note [params]
+  (let [conn (d/connect uri)
+        id    (:db/id params)
+        db    (d/db conn)
+        indent (:note/indent params)
+        title (:note/title params)]
+    @(d/transact conn [[:db.fn/retractEntity id]])
     (generate-response {:status :ok})))

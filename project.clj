@@ -20,8 +20,10 @@
                  [com.cemerick/piggieback "0.1.3"]
                  [prismatic/om-tools "0.3.4"]
                  [expectations "2.0.12"]
+                 [fogus/ring-edn "0.2.0"]
                  [com.datomic/datomic-free "0.9.5052"]
                  [weasel "0.4.0-SNAPSHOT"]]
+  :main notes.server
 
   :plugins [[lein-cljsbuild "1.0.3"]
             [lein-environ "1.0.0"]]

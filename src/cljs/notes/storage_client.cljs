@@ -10,24 +10,30 @@
    :patch "PATCH"
    :delete "DELETE"})
 
-(defn persist-create [note]
+(defn persist-create [note cb]
   (edn-xhr
     {:method :post
      :url "/notes"
      :data note
      :on-complete
-     (fn [res]
-       (println "POST response:" res))}))
+     cb}))
 
 
-(defn persist-update [note]
+(defn persist-update [note cb]
   (edn-xhr
     {:method :patch
      :url (str "/notes/" (:db/id note))
      :data note
      :on-complete
-     (fn [res]
-       (println "PATCH response:" res))}))
+     cb}))
+
+(defn remove-entry [note cb]
+  (edn-xhr
+    {:method :delete
+     :url (str "/notes/" (:db/id note))
+     :data note
+     :on-complete
+     cb}))
 
 (defn find-all [cb]
   (edn-xhr
