@@ -49,8 +49,9 @@
         db    (d/db conn)
         title (:note/title params)
         indent (:note/indent params)
+        index (:note/index params)
         eid (d/tempid :db.part/user)]
-    @(d/transact conn [{:db/id eid :note/title title :note/indent indent}])
+    @(d/transact conn [{:db/id eid :note/title title :note/indent indent :note/index index}])
     (generate-response {:status :ok :db/id (find-note-id title)})))
 
 (defn update-note [params]

@@ -14,8 +14,8 @@
               [om.dom :as dom :include-macros true]))
 
 (def app-title (str "Notes " (date-str)))
-(defn new-note [tab] { :db/id nil :note/indent tab :note/title "" :status "edited" })
-(def app-state (atom {:notes [(new-note 0)]}))
+(defn new-note [tab index] { :db/id nil :note/indent tab :note/title "" :status "edited" :note/index index})
+(def app-state (atom {:notes [(new-note 0 0)]}))
 
 (defn edit [e note owner comm]
   (let [note-val @note
@@ -234,10 +234,11 @@
 (defn go-down [app note]
   (let [existing-list (:notes @app)
         index (index-of (:notes @app) @note)
-        last-row-index (- (.-length (clj->js existing-list)) 1)]
+        length (clj->js existing-list)
+        last-row-index (- (.-length length) 1)]
     (if (= index last-row-index)
       (if (not (string/blank? (:note/title @note)))
-      (let [new-blank-note (new-note (:note/indent @note))
+      (let [new-blank-note (new-note (:note/indent @note) (count existing-list))
             current-note (get existing-list last-row-index)]
         (save-or-update app [current-note new-blank-note])
       ))
@@ -265,8 +266,8 @@
         (find-all
           (fn [res]
             (om/update! app :notes
-              (let [nn (new-note 0) final-list (vec (concat (map #(assoc % :status "entered") res) [nn]))]
-                final-list)
+              (let [nn (new-note 0 (count res)) final-list (vec (concat (map #(assoc % :status "entered") res) [nn]))]
+                (vec (sort-by :note/index final-list)))
             )
           )
         )
