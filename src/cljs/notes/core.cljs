@@ -2,7 +2,7 @@
     (:require-macros [cljs.core.async.macros :refer [go]]
                      [datomic-cljs.macros :refer [<?]])
     (:require [notes.dev :refer [is-dev?]]
-              [notes.utils :refer [date-str alphanumeric]]
+              [notes.utils :refer [date-str alphanumeric index-of]]
               [notes.event-handling :refer [event->key]]
               [notes.storage-client :refer [persist-create persist-update find-all remove-entry]]
               [om.core :as om :include-macros true]
@@ -151,17 +151,11 @@
     nil))))
 
 (defn handle-new-note-keyup [e note owner comm]
-  (let [code (event->key e)
-        which (.-which e)
-        key (.toLowerCase (js/String.fromCharCode which))]
-    (if (or (alphanumeric key) (== code "space") (== code "backspace"))
-      (do
-        (om/transact! note :note/title
-                      (fn [s]
-                        (.. e -target -value))
-                      [:note/title nil])
-        )
-      )))
+  (om/transact! note :note/title
+                (fn [s]
+                  (.. e -target -value))
+                [:note/title nil])
+  )
 
 (defn note-view  [note owner]
   (reify
@@ -198,19 +192,6 @@
                  :onChange #(change % note owner)
                  :onKeyUp #(handle-new-note-keyup % note owner comm)
                  :onKeyDown #(handle-new-note-keydown % note owner comm)})) (:note/indent note)))))
-
-(defn focus-on-input []
-  (let [element (.querySelector js/document "input")
-        value (.-value element)
-        length (.-length value)]
-    (do (.focus element)
-       (.setSelectionRange element length length))))
-
-(defn index-of [coll v]
-  (let [i (count (take-while #(not= v %) coll))]
-    (when (or (< i (count coll))
-            (= v (last coll)))
-      i)))
 
 (defn go-up [app note]
   (let [existing-list (:notes @app)
