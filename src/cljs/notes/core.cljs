@@ -2,7 +2,7 @@
     (:require-macros [cljs.core.async.macros :refer [go]]
                      [datomic-cljs.macros :refer [<?]])
     (:require [notes.dev :refer [is-dev?]]
-              [notes.utils :refer [date-str alphanumeric index-of]]
+              [notes.utils :refer [date-str index-of]]
               [notes.event-handling :refer [event->key]]
               [notes.storage-client :refer [persist-create persist-update find-all remove-entry]]
               [om.core :as om :include-macros true]

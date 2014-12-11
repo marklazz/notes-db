@@ -13,9 +13,6 @@
 
 (defn date-str [] (time-format/unparse custom-formatter (time-core/date-time (.getFullYear (now)) (+ 1 (.getMonth (now))) (.getDate (now)))))
 
-(defn alphanumeric [s]
-  (re-find #"^[a-z0-9]+$" s))
-
 (defn index-of [coll v]
   (let [i (count (take-while #(not= v %) coll))]
     (when (or (< i (count coll))
