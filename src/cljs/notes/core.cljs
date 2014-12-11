@@ -4,7 +4,7 @@
     (:require [notes.dev :refer [is-dev?]]
               [notes.utils :refer [date-str index-of]]
               [notes.event-handling :refer [event->key]]
-              [notes.storage-client :refer [persist-create persist-update find-all remove-entry]]
+              [notes.storage-gateway :refer [persist-create persist-update find-all remove-entry]]
               [om.core :as om :include-macros true]
               [om-tools.dom :as dom-tools :include-macros true]
               [cljs.core.async :refer [put! chan <!]]

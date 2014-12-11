@@ -1,4 +1,4 @@
-(ns notes.storage-client
+(ns notes.storage-gateway
   (:require [cljs.reader :as reader]
             [goog.events :as events])
   (:import [goog.net XhrIo]))
