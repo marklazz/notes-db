@@ -1,9 +1,5 @@
 (ns notes.storage
   (:require [datomic.api :as d]))
-; Steps to recreate DB
-; (use 'notes.storage)
-; 1) run (re-create-db) in one session
-; 2) run (use-schema) in another session
 
 (def uri "datomic:sql://notes-db?jdbc:postgresql://localhost:5432/datomic?user=datomic&password=datomic")
 (def schema (load-file "resources/datomic/schema.edn"))
