@@ -5,7 +5,7 @@
 ; 1) run (re-create-db) in one session
 ; 2) run (use-schema) in another session
 
-(def uri "datomic:free://localhost:4334/notes-db")
+(def uri "datomic:sql://notes-db?jdbc:postgresql://localhost:5432/datomic?user=datomic&password=datomic")
 (def schema (load-file "resources/datomic/schema.edn"))
 
 (defn generate-response [data & [status]]

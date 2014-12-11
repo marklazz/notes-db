@@ -21,7 +21,9 @@
                  [prismatic/om-tools "0.3.4"]
                  [expectations "2.0.12"]
                  [fogus/ring-edn "0.2.0"]
-                 [com.datomic/datomic-free "0.9.5052"]
+                 ;[com.datomic/datomic-free "0.9.5052"]
+                 [com.datomic/datomic-pro "0.9.5052"]
+                 [org.postgresql/postgresql "9.3-1102-jdbc41"]
                  [weasel "0.4.0-SNAPSHOT"]]
   :main notes.server
 
@@ -31,6 +33,9 @@
   :min-lein-version "2.0.0"
 
   :uberjar-name "notes.jar"
+  :repositories [["my.datomic.com" {:url "https://my.datomic.com/repo"
+                                    :username [:env/my_datomic_username]
+                                    :password [:env/my_datomic_password]}]]
 
   :cljsbuild {:builds {:app {:source-paths ["src/clj" "src/cljs"]
                              :compiler {:output-to     "resources/public/app.js"
@@ -47,8 +52,8 @@
                    :figwheel {:http-server-root "public"
                               :port 3449 }
                    :env {:is-dev true}
-                   :datomic { :config "resources/datomic/free-transactor-template.properties"
-                             :db-uri "datomic:free://localhost:4334/notes-db"}}
+                   :datomic { :config "resources/datomic/sql-transactor-template.properties"
+                             :db-uri "datomic:sql://notes-db?jdbc:postgresql://localhost:5432/datomic?user=datomic&password=datomic"}}
              :uberjar {:hooks [leiningen.cljsbuild]
                        :env {:production true}
                        :omit-source true
