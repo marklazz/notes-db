@@ -34,8 +34,8 @@
 
   :uberjar-name "notes.jar"
   :repositories [["my.datomic.com" {:url "https://my.datomic.com/repo"
-                                    :username [:env/my_datomic_username]
-                                    :password [:env/my_datomic_password]}]]
+                                    :username ~(System/getenv "MY_DATOMIC_USERNAME")
+                                    :password ~(System/getenv "MY_DATOMIC_PASSWORD")}]]
 
   :cljsbuild {:builds {:app {:source-paths ["src/clj" "src/cljs"]
                              :compiler {:output-to     "resources/public/app.js"
@@ -53,7 +53,7 @@
                               :port 3449 }
                    :env {:is-dev true}
                    :datomic { :config "resources/datomic/sql-transactor-template.properties"
-                             :db-uri [:env/database_url]}}
+                             :db-uri ~(System/getenv "DATABASE_URL")}}
              :uberjar {:hooks [leiningen.cljsbuild]
                        :env {:production true}
                        :omit-source true
