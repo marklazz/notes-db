@@ -24,11 +24,10 @@
   (resources "/react" {:root "react"})
   (files "/" {:root "resources/public"}))
 
-(defn logging [chain] (fn [req] (do (println (str "REQUEST: " req)) (chain req))))
+(defn logging-middleware [chain] (fn [req] (do (println (str "REQUEST: " req)) (chain req))))
 
 (def http-handler
   (if is-dev?
-    ;(reload/wrap-reload (api #'routes))
     (-> routes wrap-edn-params)
     (api routes)))
 
