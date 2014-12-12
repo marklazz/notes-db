@@ -1,7 +1,9 @@
 (ns notes.storage
-  (:require [datomic.api :as d]))
+  (:require [datomic.api :as d])
+  (:require [environ.core :refer [env]])
+  )
 
-(def uri "datomic:sql://notes-db?jdbc:postgresql://localhost:5432/datomic?user=datomic&password=datomic")
+(def uri (env :database-url))
 (def schema (load-file "resources/datomic/schema.edn"))
 
 (defn generate-response [data & [status]]

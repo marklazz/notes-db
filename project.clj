@@ -53,7 +53,7 @@
                               :port 3449 }
                    :env {:is-dev true}
                    :datomic { :config "resources/datomic/sql-transactor-template.properties"
-                             :db-uri "datomic:sql://notes-db?jdbc:postgresql://localhost:5432/datomic?user=datomic&password=datomic"}}
+                             :db-uri [:env/database_url]}}
              :uberjar {:hooks [leiningen.cljsbuild]
                        :env {:production true}
                        :omit-source true
