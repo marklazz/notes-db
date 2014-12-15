@@ -3,7 +3,7 @@
   (:require [environ.core :refer [env]])
   )
 
-(def uri (env :database-url))
+(def uri (env :datomic-storage-url))
 (def schema (load-file "resources/datomic/schema.edn"))
 
 (defn generate-response [data & [status]]

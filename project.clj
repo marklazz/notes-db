@@ -53,7 +53,7 @@
                               :port 3449 }
                    :env {:is-dev true}
                    :datomic { :config "resources/datomic/sql-transactor-template.properties"
-                             :db-uri ~(System/getenv "DATABASE_URL")}}
+                             :db-uri ~(System/getenv "DATOMIC_STORAGE_URL")}}
              :uberjar {:hooks [leiningen.cljsbuild]
                        :env {:production true}
                        :omit-source true
