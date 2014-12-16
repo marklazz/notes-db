@@ -22,7 +22,8 @@
   (PATCH "/notes/:id" {params :params edn-params :edn-params} (update-note edn-params))
   (DELETE "/notes/:id" {params :params edn-params :edn-params} (delete-note edn-params))
   (resources "/react" {:root "react"})
-  (files "/" {:root "resources/public"}))
+  (files "/" {:root "resources/public"})
+  (GET "/*" req (page)))
 
 (defn logging-middleware [chain] (fn [req] (do (println (str "REQUEST: " req)) (chain req))))
 
