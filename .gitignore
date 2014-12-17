@@ -10,3 +10,5 @@ pom.xml.asc
 /resources/public/out
 /out
 /.repl
+datomic-pro-0.9.5052/
+resources/datomic/*.properties
