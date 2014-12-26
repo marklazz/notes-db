@@ -35,10 +35,11 @@
      :on-complete
      cb}))
 
-(defn find-all [cb]
+(defn find-all [params cb]
   (edn-xhr
     { :method :get
       :url "/notes"
+      :data params
       :on-complete cb}))
 
 (defn edn-xhr [{:keys [method url data on-complete]}]

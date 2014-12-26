@@ -20,9 +20,19 @@
    @(d/transact conn schema)
     conn))
 
-(defn find-all []
-  (let [conn (d/connect uri)
-       db (d/db conn)
+(def conn (d/connect uri))
+
+(defn database [params]
+    (if (contains? params :time)
+      (let [time-s (:time params)
+            date(.parse (java.text.SimpleDateFormat. "MM/dd/yyyy") time-s)]
+        (d/as-of (d/db conn) date)
+      )
+      (d/db conn)
+    ))
+
+(defn find-all [params]
+  (let [db (database params)
         notes
         (vec (map #(d/touch (d/entity db (first %)))
                (d/q '[:find ?note
@@ -31,9 +41,9 @@
                  db)))]
     (generate-response notes)))
 
-(defn find-note-id [title]
-  (let [conn (d/connect uri)
-        db    (d/db conn)]
+(defn find-note-id [params]
+  (let [db    (database params)
+        title (:title params)]
     (ffirst
       (d/q '[:find ?note
              :in $ ?title
@@ -43,28 +53,25 @@
 ))
 
 (defn create-note [params]
-  (let [conn (d/connect uri)
-        db    (d/db conn)
+  (let [db    (database params)
         title (:note/title params)
         indent (:note/indent params)
         index (:note/index params)
         eid (d/tempid :db.part/user)]
     @(d/transact conn [{:db/id eid :note/title title :note/indent indent :note/index index}])
-    (generate-response {:status :ok :db/id (find-note-id title)})))
+    (generate-response {:status :ok :db/id (find-note-id (merge params { :title title }))})))
 
 (defn update-note [params]
-  (let [conn (d/connect uri)
-        id    (:db/id params)
-        db    (d/db conn)
+  (let [id    (:db/id params)
+        db    (database params)
         indent (:note/indent params)
         title (:note/title params)]
     @(d/transact conn [{:db/id id :note/title title :note/indent indent}])
     (generate-response {:status :ok})))
 
 (defn delete-note [params]
-  (let [conn (d/connect uri)
-        id    (:db/id params)
-        db    (d/db conn)
+  (let [id    (:db/id params)
+        db    (database params)
         indent (:note/indent params)
         title (:note/title params)]
     @(d/transact conn [[:db.fn/retractEntity id]])

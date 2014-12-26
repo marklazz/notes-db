@@ -17,7 +17,7 @@
 
 (defroutes routes
   (GET "/" req (page))
-  (GET "/notes" [] (find-all))
+  (GET "/notes" [] (find-all {}))
   (POST "/notes" {params :params edn-params :edn-params} (create-note edn-params))
   (PATCH "/notes/:id" {params :params edn-params :edn-params} (update-note edn-params))
   (DELETE "/notes/:id" {params :params edn-params :edn-params} (delete-note edn-params))
@@ -29,7 +29,7 @@
 
 (def http-handler
   (if is-dev?
-    (-> routes wrap-edn-params)
+    (-> routes logging-middleware wrap-edn-params)
     (api routes)))
 
 (defn run [& [port]]

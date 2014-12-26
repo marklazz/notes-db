@@ -230,6 +230,18 @@
   )
 )
 
+(defn go-back-in-time [app params]
+  (.log js/console (str "HOLA PUTO" params))
+  (find-all params
+    (fn [res]
+      (om/update! app :notes
+                  (let [nn (new-note 0 (count res)) final-list (vec (concat (map #(assoc % :status "entered") res) [nn]))]
+                    (vec (sort-by :note/index final-list)))
+                  )
+      )
+  )
+)
+
 (defn handle-event [type app val]
   (case type
     :destroy (destroy-note app val)
@@ -237,14 +249,37 @@
     :up      (go-up app val)
     :down    (go-down app val)
     :save    (save-or-update-note app val)
+    :refresh (go-back-in-time app val)
     nil))
+
+(defn handle-time-change [owner comm]
+  (let [elem (js/$ "#datepicker")
+        date (.val elem)]
+    (put! comm [:refresh { :time date }])
+  ))
+
+(defn date-picker [input owner]
+  (reify
+    om/IDidMount
+    (did-mount [_]
+      (let [elem (js/$ "#datepicker")]
+        (.datepicker elem)))
+    om/IRenderState
+    (render-state [_ {:keys [comm] :as state}]
+      (dom/div nil
+        (dom/input #js { :id "datepicker" })
+        (dom/input #js { :type "submit" :onClick #(handle-time-change owner comm) })
+        )
+      )
+    )
+ )
 
 (defn notes-app [app owner]
   (reify
     om/IWillMount
     (will-mount [_]
       (let [comm (chan)]
-        (find-all
+        (find-all {}
           (fn [res]
             (om/update! app :notes
               (let [nn (new-note 0 (count res)) final-list (vec (concat (map #(assoc % :status "entered") res) [nn]))]
@@ -261,14 +296,19 @@
     om/IRenderState
     (render-state [_ {:keys [comm]}]
       (dom/div nil
-        (dom/h1 nil app-title)
+      (dom/div #js { :id "app" }
+       (dom/h1 nil app-title)
         (apply dom/ul nil
           (om/build-all note-view (:notes app)
           {:init-state {:comm comm}
            :key :db/id }
-          ))))))
+          ))
+        )
+       (om/build date-picker (:notes app)
+                           {:init-state {:comm comm} })
+      ))))
 
 (om/root
   notes-app
   app-state
-  {:target (. js/document (getElementById "app"))})
+  {:target (. js/document (getElementById "app-container"))})
