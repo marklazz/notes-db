@@ -230,17 +230,15 @@
   )
 )
 
-(defn go-back-in-time [app params]
-  (.log js/console (str "HOLA PUTO" params))
-  (find-all params
-    (fn [res]
-      (om/update! app :notes
-                  (let [nn (new-note 0 (count res)) final-list (vec (concat (map #(assoc % :status "entered") res) [nn]))]
-                    (vec (sort-by :note/index final-list)))
-                  )
-      )
-  )
+(defn refresh-notes [app res]
+  (om/update! app :notes
+              (let [nn (new-note 0 (count res)) final-list (vec (concat (map #(assoc % :status "entered") res) [nn]))]
+                (vec (sort-by :note/index final-list)))
+              )
 )
+
+(defn go-back-in-time [app params]
+  (find-all params #(refresh-notes app %)))
 
 (defn handle-event [type app val]
   (case type
@@ -263,7 +261,8 @@
     om/IDidMount
     (did-mount [_]
       (let [elem (js/$ "#datepicker")]
-        (.datepicker elem)))
+        (.datepicker elem)
+        (.datepicker elem "option" "dateFormat" "ddmmyy")))
     om/IRenderState
     (render-state [_ {:keys [comm] :as state}]
       (dom/div nil
@@ -279,14 +278,7 @@
     om/IWillMount
     (will-mount [_]
       (let [comm (chan)]
-        (find-all {}
-          (fn [res]
-            (om/update! app :notes
-              (let [nn (new-note 0 (count res)) final-list (vec (concat (map #(assoc % :status "entered") res) [nn]))]
-                (vec (sort-by :note/index final-list)))
-            )
-          )
-        )
+        (find-all {}  #(refresh-notes app %))
         (om/set-state! owner :comm comm)
         (go (while true
               (let [[type value] (<! comm)]

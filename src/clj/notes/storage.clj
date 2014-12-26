@@ -22,10 +22,12 @@
 
 (def conn (d/connect uri))
 
+(defn parse-date [date-str] (.parse (java.text.SimpleDateFormat. "ddMMyyyy") date-str))
+
 (defn database [params]
     (if (contains? params :time)
       (let [time-s (:time params)
-            date(.parse (java.text.SimpleDateFormat. "MM/dd/yyyy") time-s)]
+            date (parse-date time-s)]
         (d/as-of (d/db conn) date)
       )
       (d/db conn)

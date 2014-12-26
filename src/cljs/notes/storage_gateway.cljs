@@ -38,7 +38,7 @@
 (defn find-all [params cb]
   (edn-xhr
     { :method :get
-      :url "/notes"
+      :url (str "/notes/" (:time params))
       :data params
       :on-complete cb}))
 
